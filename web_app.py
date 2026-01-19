@@ -62,15 +62,21 @@ else:
                     with c2:
                         if item['status'] == "In Progress":
                             if st.button("MARK FINISHED", key=item['id']):
-                                # This update now saves the EXACT time
                                 now = datetime.now().isoformat()
-                                supabase.table("properties").update({"status": "Completed", "last_completed_at": now}).eq("id", item['id']).execute()
-                                st.rerun()
-                        elif item['status'] == "Completed":
-                            st.button("SERVICE DONE", disabled=True, key=item['id'])
-                        else:
-                            if st.button("START SERVICE", key=item['id']):
-                                supabase.table("properties").update({"status": "In Progress"}).eq("id", item['id']).execute()
+                                
+                                # 1. Update the main Property dashboard
+                                supabase.table("properties").update({
+                                    "status": "Completed", 
+                                    "last_completed_at": now
+                                }).eq("id", item['id']).execute()
+                                
+                                # 2. NEW: Write to the permanent History Log
+                                supabase.table("service_logs").insert({
+                                    "property_name": item['name'],
+                                    "status_reached": "Completed",
+                                    "staff_email": email # This uses the email from your login
+                                }).execute()
+                                
                                 st.rerun()
 
         # --- 7. Manager Controls ---
@@ -84,6 +90,23 @@ else:
     except Exception as e:
         st.error(f"Error: {e}")
 
+    # --- 8. MANAGER REPORT: History Log ---
+    st.markdown("---")
+    st.subheader("📜 RECENT ACTIVITY REPORT")
+    
+    try:
+        # Fetch the last 10 entries from our new history table
+        history = supabase.table("service_logs").select("*").order("finished_at", desc=True).limit(10).execute()
+        
+        if history.data:
+            # Display the data in a clean professional table
+            st.table(history.data)
+        else:
+            st.info("No history recorded yet. Complete a room to see data here.")
+    except Exception as e:
+        st.error(f"Could not load report: {e}")
+
     if st.button("Log Out"):
         st.session_state.logged_in = False
         st.rerun()
+
