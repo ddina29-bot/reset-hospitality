@@ -4,10 +4,10 @@ from datetime import datetime
 
 # --- 1. Database Setup ---
 SUPABASE_URL = "https://wuqgjkurzstjmhtbdqez.supabase.co"
-SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind1cWdqa3VyenN0am1odGJkcWV6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg4MjU5MTcsImV4cCI6MjA4NDQwMTkxN30.uealUGFmT7qiX_eA3Ya-cuW9KJYcBg-et18iaEdppEs"
+SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind1cWdqa3VyenN0am1odGJkcWV6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg4MjU5MTcsImV4cCI6MjA4NDQwMTkxN30.uealUGFmT7qiX_eA3Ya-cuW9KJYcBg-et18iaEdppEs" # Ensure your key is pasted here
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-# --- 2. Branding ---
+# --- 2. Luxury Branding ---
 st.set_page_config(page_title="RE-SET Hospitality", layout="centered")
 GOLD = "#D4AF37"
 st.markdown(f"<h1 style='text-align: center;'>RE-SET</h1><h3 style='text-align: center; color: {GOLD};'>Hospitality Studio</h3>", unsafe_allow_html=True)
@@ -29,14 +29,13 @@ if not st.session_state.logged_in:
             except: st.session_state.username = "Dina"
             st.rerun()
 else:
-    # --- 3. The Professional Tabbed Layout ---
+    # --- 3. Personalized Greeting ---
     st.markdown(f"<p style='text-align: center;'>Welcome back, <b>{st.session_state.username}</b>! 👋</p>", unsafe_allow_html=True)
     
-    # This separates the 'Stress' of today from the 'Success' of the past
+    # --- 4. Professional Tabs ---
     tab1, tab2 = st.tabs(["🚀 LIVE DASHBOARD", "📜 PERFORMANCE REPORTS"])
 
     with tab1:
-        # --- DASHBOARD LOGIC (What you've built so far) ---
         try:
             response = supabase.table("properties").select("*").execute()
             properties = response.data
@@ -60,7 +59,6 @@ else:
                         st.write(f"**{item['name'].upper()}**")
                         color = "#27AE60" if item['status'] == "Completed" else "#D4AF37"
                         st.markdown(f"<span style='color:{color}'>Status: {item['status']}</span>", unsafe_allow_html=True)
-                        if item.get('notes'): st.caption(f"📝 {item['notes']}")
                     with col2:
                         if item['status'] == "In Progress":
                             if st.button("FINISH", key=f"f_{item['id']}"):
@@ -74,43 +72,35 @@ else:
                                 supabase.table("properties").update({"status": "In Progress"}).eq("id", item['id']).execute()
                                 st.rerun()
             
+            # --- PHASE 4 MANAGER TOOLS ---
             st.markdown("---")
+            st.subheader("MANAGER TOOLS")
+            
+            # Reset Button
             if st.button("🔄 RESET ALL FOR TOMORROW", use_container_width=True):
                 supabase.table("properties").update({"status": "Ready", "last_completed_at": None}).neq("name", "VOID").execute()
                 st.rerun()
-                # --- 8. EXPANSION: Add New Property (Phase 4) ---
-        st.markdown("---")
-        with st.expander("➕ ADD NEW PROPERTY TO STUDIO"):
-            st.write("Use this to grow your business. New properties appear as 'Ready' instantly.")
-            new_p_name = st.text_input("Property Name (e.g., Suite 102)")
             
-            if st.button("Confirm & Add Property"):
-                if new_p_name:
-                    # This sends the new room name to your cloud database
-                    supabase.table("properties").insert({
-                        "name": new_p_name, 
-                        "status": "Ready"
-                    }).execute()
-                    st.success(f"Success! {new_p_name} is now live.")
-                    st.rerun()
-                else:
-                    st.warning("Please enter a name first.")
+            # Property Creator Tool (New in Phase 4)
+            with st.expander("➕ ADD NEW PROPERTY TO STUDIO"):
+                st.write("New properties appear as 'Ready' instantly.")
+                new_p_name = st.text_input("Property Name (e.g., Suite 102)")
+                if st.button("Confirm & Add"):
+                    if new_p_name:
+                        supabase.table("properties").insert({"name": new_p_name, "status": "Ready"}).execute()
+                        st.success(f"{new_p_name} is now live!")
+                        st.rerun()
+
         except Exception as e: st.error(f"Error: {e}")
 
     with tab2:
-        # --- REPORTING LOGIC (The Phase 3 Finish Line) ---
         st.subheader("Historical Activity Log")
-        st.write("This table keeps a permanent record of every completed service, even after you reset the dashboard.")
         try:
             history = supabase.table("service_logs").select("*").order("finished_at", desc=True).execute()
-            if history.data:
-                # We show the full history here in a professional table
-                st.dataframe(history.data, use_container_width=True)
-            else:
-                st.info("No activity recorded yet.")
+            if history.data: st.dataframe(history.data, use_container_width=True)
+            else: st.info("No activity recorded yet.")
         except Exception as e: st.error(f"Could not load report: {e}")
 
     if st.button("Log Out"):
         st.session_state.logged_in = False
         st.rerun()
-
