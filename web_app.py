@@ -33,11 +33,14 @@ if not st.session_state.logged_in:
         else:
             st.error("Access Denied")
 else:
-    # --- 4. Live Dashboard ---
-    st.sidebar.write(f"Logged in as: **{st.session_state.username}**")
+    # --- 4. Live Dashboard & Personalized Greeting ---
+    # We move this from the sidebar to the main center screen
+    st.markdown(f"<p style='text-align: center; font-size: 20px;'>Welcome back, <b>{st.session_state.username}</b>! 👋</p>", unsafe_allow_html=True)
+    
     st.subheader("PROPERTY OVERVIEW")
     
     try:
+        # (The rest of your code remains the same...)
         response = supabase.table("properties").select("*").execute()
         properties = response.data
         
@@ -105,3 +108,4 @@ else:
     if st.button("Log Out"):
         st.session_state.logged_in = False
         st.rerun()
+
