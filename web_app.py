@@ -3,7 +3,7 @@ from supabase import create_client, Client
 
 # --- 1. Database Setup ---
 SUPABASE_URL = "https://wuqgjkurzstjmhtbdqez.supabase.co"
-SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind1cWdqa3VyenN0am1odGJkcWV6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg4MjU5MTcsImV4cCI6MjA4NDQwMTkxN30.uealUGFmT7qiX_eA3Ya-cuW9KJYcBg-et18iaEdppEs" # Make sure this is your SERVICE_ROLE key or ANON key
+SUPABASE_KEY = "eyJhbG..." # Ensure your long key is pasted here
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # --- 2. Luxury Branding ---
@@ -12,31 +12,28 @@ GOLD = "#D4AF37"
 
 st.markdown(f"<h1 style='text-align: center;'>RE-SET</h1><h3 style='text-align: center; color: {GOLD};'>Hospitality Studio</h3><hr>", unsafe_allow_html=True)
 
-# --- 3. Bypass Login (For Testing Only) ---
+# --- 3. Login Logic ---
 if 'logged_in' not in st.session_state:
     st.session_state.logged_in = False
 
 if not st.session_state.logged_in:
     email = st.text_input("Email")
     password = st.text_input("Password", type="password")
-    
-    # We use a simple 'if' check here to bypass the Supabase Auth gate for a moment
     if st.button("LOG IN"):
-        if email == "dina@test.com" and password == "123456": # Use a simple temporary password
+        # Temporary bypass for testing
+        if email == "dina@test.com" and password == "123456":
             st.session_state.logged_in = True
             st.rerun()
         else:
-            st.error("Temporary Bypass Failed. Check your typing.")
+            st.error("Access Denied")
 else:
-   # --- 4. Live Dashboard & Automated Summary ---
+    # --- 4. Live Dashboard & Metrics ---
     st.subheader("PROPERTY OVERVIEW")
     
     try:
-        # Fetch data from your cloud database
         response = supabase.table("properties").select("id, name, status").execute()
         properties = response.data
         
-        # AUTOMATION: Calculates metrics instantly
         total_rooms = len(properties)
         completed_rooms = sum(1 for p in properties if p['status'] == 'Completed')
         remaining = total_rooms - completed_rooms
@@ -47,19 +44,17 @@ else:
         col_c.metric("Remaining", remaining)
         st.markdown("---")
 
-        # --- 5. SCALING: Search & Filter Bar ---
-        # This allows for quick navigation as you add more suites
+        # --- 5. Search & Filter Bar ---
         search_query = st.text_input("🔍 Search by Property Name", "").strip().lower()
         status_filter = st.selectbox("🎯 Filter by Status", ["All", "Ready", "In Progress", "Completed"])
 
-        # This logic filters the list before showing it
         filtered_properties = [
             p for p in properties 
             if (search_query in p['name'].lower()) and 
                (status_filter == "All" or p['status'] == status_filter)
         ]
 
-        # --- 6. The Property List cards ---
+        # --- 6. Property List ---
         if not filtered_properties:
             st.info("No properties match your search.")
         else:
@@ -71,7 +66,6 @@ else:
                         status = item.get('status', 'Ready')
                         color = "#27AE60" if status == "Completed" else "#D4AF37"
                         st.markdown(f"<span style='color:{color}'>Status: {status}</span>", unsafe_allow_html=True)
-
                     with col2:
                         if "Progres" in status:
                             if st.button("MARK FINISHED", key=item['id']):
@@ -84,28 +78,18 @@ else:
                                 supabase.table("properties").update({"status": "In Progress"}).eq("id", item['id']).execute()
                                 st.rerun()
 
-        # --- 7. Automation: The Daily Reset ---
+        # --- 7. Manager Automation ---
         st.markdown("---")
         st.subheader("MANAGER AUTOMATION")
-        
         if st.button("🔄 RESET ALL FOR TOMORROW", use_container_width=True):
-            supabase.table("properties").update({"status": "Ready"}).neq("name", "RE-SET-SYSTEM-VOID").execute()
-            st.success("Automation Complete: All rooms are now Ready.")
-            st.rerun() 
+            supabase.table("properties").update({"status": "Ready"}).neq("name", "VOID").execute()
+            st.success("All rooms reset to Ready.")
+            st.rerun()
 
     except Exception as e:
         st.error(f"Database Error: {e}")
 
-    # Clean Login UI: Move Log Out to center bottom
+    # Center the Log Out button at the bottom
     if st.button("Log Out"):
         st.session_state.logged_in = False
         st.rerun()
-    except Exception as e:
-        st.error(f"Database Error: {e}")
-
-    # Log Out Sidebar
-    # Remove '.sidebar' to move the button to the main center screen
-    if st.button("Log Out"):
-        st.session_state.logged_in = False
-        st.rerun()
-
