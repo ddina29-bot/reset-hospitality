@@ -28,14 +28,26 @@ if not st.session_state.logged_in:
         else:
             st.error("Temporary Bypass Failed. Check your typing.")
 else:
-    # --- 4. Live Dashboard ---
+   # --- 4. Live Dashboard & Automated Summary ---
     st.subheader("PROPERTY OVERVIEW")
     
     try:
         # Fetching your clean property list
         response = supabase.table("properties").select("id, name, status").execute()
         properties = response.data
+        
+        # AUTOMATION: This part automatically counts your progress
+        total_rooms = len(properties)
+        completed_rooms = sum(1 for p in properties if p['status'] == 'Completed')
+        remaining = total_rooms - completed_rooms
 
+        col_a, col_b, col_c = st.columns(3)
+        col_a.metric("Total Properties", total_rooms)
+        col_b.metric("Done", completed_rooms)
+        col_c.metric("Remaining", remaining)
+        st.markdown("---")
+
+        # --- 5. The Property List cards ---
         for item in properties:
             with st.container(border=True):
                 col1, col2 = st.columns([2, 1])
@@ -56,28 +68,22 @@ else:
                         if st.button("START SERVICE", key=item['id']):
                             supabase.table("properties").update({"status": "In Progress"}).eq("id", item['id']).execute()
                             st.rerun()
+
+        # --- 6. Automation: The Daily Reset ---
+        st.markdown("---")
+        st.subheader("MANAGER AUTOMATION")
+        
+        # This button automates the reset of every room to 'Ready'
+        if st.button("🔄 RESET ALL FOR TOMORROW", use_container_width=True):
+            # Using a logic check to target all rows
+            supabase.table("properties").update({"status": "Ready"}).neq("name", "RE-SET-SYSTEM-VOID").execute()
+            st.success("Automation Complete: All rooms are now Ready.")
+            st.rerun() 
+
     except Exception as e:
         st.error(f"Database Error: {e}")
 
-    if st.button("Log Out"):
-        st.session_state.logged_in = False
-        st.rerun()
-        # --- 5. Manager Tools (The Daily Reset) ---
-    st.markdown("---")
-    st.subheader("MANAGER CONTROLS")
-    
-    if st.button("RESET ALL ROOMS FOR TOMORROW", use_container_width=True):
-        try:
-            # This command tells the database to set every status back to 'Ready'
-            supabase.table("properties").update({"status": "Ready"}).neq("id", "00000000-0000-0000-0000-000000000000").execute()
-            st.success("All properties (Suite 101, Lobby Lounge, etc.) are now RESET.")
-            st.rerun() # This refreshes the screen so all cards turn gold again
-        except Exception as e:
-            st.error(f"Reset failed: {e}")
-
-    # Log Out Button
+    # Log Out Sidebar
     if st.sidebar.button("Log Out"):
         st.session_state.logged_in = False
         st.rerun()
-
-
