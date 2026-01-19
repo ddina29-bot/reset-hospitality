@@ -3,7 +3,7 @@ from supabase import create_client, Client
 from datetime import datetime
 
 # --- 1. Database Setup ---
-# PASTE YOUR ACTUAL SUPABASE KEY INSIDE THE QUOTES BELOW
+# (Ensure your actual Supabase Key is inside the quotes below)
 SUPABASE_URL = "https://wuqgjkurzstjmhtbdqez.supabase.co"
 SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind1cWdqa3VyenN0am1odGJkcWV6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg4MjU5MTcsImV4cCI6MjA4NDQwMTkxN30.uealUGFmT7qiX_eA3Ya-cuW9KJYcBg-et18iaEdppEs" 
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
@@ -25,7 +25,7 @@ if not st.session_state.logged_in:
         if email == "dina@test.com" and password == "123456":
             st.session_state.logged_in = True
             try:
-                # Fetches your name "Dina" from the staff_directory table
+                # Fetches your name from the staff directory table
                 user_query = supabase.table("staff_directory").select("full_name").eq("email", email).execute()
                 st.session_state.username = user_query.data[0]['full_name'] if user_query.data else "Dina"
             except: 
@@ -45,15 +45,16 @@ else:
             response = supabase.table("properties").select("*").execute()
             properties = response.data
             
-            # Overview Metrics
+            # Metrics
             c1, c2, c3 = st.columns(3)
             c1.metric("Total", len(properties))
             c2.metric("Done", sum(1 for p in properties if p['status'] == 'Completed'))
             c3.metric("Remaining", sum(1 for p in properties if p['status'] != 'Completed'))
             
-            # Filtering Tools
+            # Filters
             search = st.text_input("🔍 Search", "").strip().lower()
-            f_status = st.selectbox("🎯 Filter", ["All", "Ready", "In Progress", "Completed"], index=0)
+            # SET TO READY BY DEFAULT (index 1)
+            f_status = st.selectbox("🎯 Filter", ["All", "Ready", "In Progress", "Completed"], index=1)
             filtered = [p for p in properties if (search in p['name'].lower()) and (f_status == "All" or p['status'] == f_status)]
 
             # --- 5. Property Cards ---
@@ -66,12 +67,12 @@ else:
                         color = "#27AE60" if status == "Completed" else "#D4AF37"
                         st.markdown(f"<span style='color:{color}'>Status: {status}</span>", unsafe_allow_html=True)
                         
-                        # TIME FIX: Displays the finish time on the card
+                        # TIME DISPLAY: Shows when it was finished
                         if status == "Completed" and item.get('last_completed_at'):
                             formatted_time = item['last_completed_at'][:16].replace('T', ' ')
                             st.caption(f"✅ Finished at: {formatted_time}")
                         
-                        # NOTES FIX: Fetches and saves Special Instructions
+                        # NOTES DISPLAY: Persistent Special Instructions
                         current_note = item.get('notes') if item.get('notes') else ""
                         new_note = st.text_input("Special Instructions", value=current_note, key=f"n_{item['id']}")
                         if new_note != current_note:
@@ -83,9 +84,9 @@ else:
                         if status == "In Progress":
                             if st.button("FINISH", key=f"f_{item['id']}"):
                                 now = datetime.now().isoformat()
-                                # 1. Update Property Status
+                                # Record Status & Time to Property table
                                 supabase.table("properties").update({"status": "Completed", "last_completed_at": now}).eq("id", item['id']).execute()
-                                # 2. Record Who & When to History
+                                # Record Who & When to History log
                                 supabase.table("service_logs").insert({
                                     "property_name": item['name'], 
                                     "status_reached": "Completed", 
@@ -103,6 +104,7 @@ else:
             st.markdown("---")
             st.subheader("MANAGER TOOLS")
             if st.button("🔄 RESET ALL FOR TOMORROW", use_container_width=True):
+                # Clears board but keeps your notes safe!
                 supabase.table("properties").update({"status": "Ready", "last_completed_at": None}).neq("name", "VOID").execute()
                 st.rerun()
             
