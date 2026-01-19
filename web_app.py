@@ -3,7 +3,7 @@ from supabase import create_client, Client
 
 # --- 1. Database Setup ---
 SUPABASE_URL = "https://wuqgjkurzstjmhtbdqez.supabase.co"
-SUPABASE_KEY = "eyJhbG..." # Ensure your long key is pasted here
+SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind1cWdqa3VyenN0am1odGJkcWV6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg4MjU5MTcsImV4cCI6MjA4NDQwMTkxN30.uealUGFmT7qiX_eA3Ya-cuW9KJYcBg-et18iaEdppEs" # Ensure your long key is pasted here
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # --- 2. Luxury Branding ---
@@ -93,3 +93,4 @@ else:
     if st.button("Log Out"):
         st.session_state.logged_in = False
         st.rerun()
+
