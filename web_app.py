@@ -4,7 +4,7 @@ from datetime import datetime
 
 # --- 1. Database Setup ---
 SUPABASE_URL = "https://wuqgjkurzstjmhtbdqez.supabase.co"
-SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind1cWdqa3VyenN0am1odGJkcWV6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg4MjU5MTcsImV4cCI6MjA4NDQwMTkxN30.uealUGFmT7qiX_eA3Ya-cuW9KJYcBg-et18iaEdppEs" # Ensure your key is pasted here
+SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind1cWdqa3VyenN0am1odGJkcWV6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg4MjU5MTcsImV4cCI6MjA4NDQwMTkxN30.uealUGFmT7qiX_eA3Ya-cuW9KJYcBg-et18iaEdppEs"
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # --- 2. Luxury Branding ---
@@ -51,44 +51,50 @@ else:
             f_status = st.selectbox("🎯 Filter", ["All", "Ready", "In Progress", "Completed"], index=1)
             filtered = [p for p in properties if (search in p['name'].lower()) and (f_status == "All" or p['status'] == f_status)]
 
-            # Property Cards
+            # --- 5. Property Cards with Notes (NEW) ---
             for item in filtered:
                 with st.container(border=True):
                     col1, col2 = st.columns([2, 1])
                     with col1:
                         st.write(f"**{item['name'].upper()}**")
-                        color = "#27AE60" if item['status'] == "Completed" else "#D4AF37"
-                        st.markdown(f"<span style='color:{color}'>Status: {item['status']}</span>", unsafe_allow_html=True)
+                        status = item.get('status', 'Ready')
+                        color = "#27AE60" if status == "Completed" else "#D4AF37"
+                        st.markdown(f"<span style='color:{color}'>Status: {status}</span>", unsafe_allow_html=True)
+                        
+                        # --- Notes Logic ---
+                        current_note = item.get('notes') if item.get('notes') else ""
+                        # Use st.text_area for longer instructions
+                        new_note = st.text_input("Special Instructions", value=current_note, key=f"note_{item['id']}")
+                        if new_note != current_note:
+                            supabase.table("properties").update({"notes": new_note}).eq("id", item['id']).execute()
+                            st.toast(f"Note updated for {item['name']}")
+
                     with col2:
-                        if item['status'] == "In Progress":
+                        if status == "In Progress":
                             if st.button("FINISH", key=f"f_{item['id']}"):
                                 now = datetime.now().isoformat()
                                 supabase.table("properties").update({"status": "Completed", "last_completed_at": now}).eq("id", item['id']).execute()
                                 supabase.table("service_logs").insert({"property_name": item['name'], "status_reached": "Completed", "staff_email": st.session_state.username}).execute()
                                 st.rerun()
-                        elif item['status'] == "Completed": st.button("DONE", disabled=True, key=f"d_{item['id']}")
+                        elif status == "Completed": st.button("DONE", disabled=True, key=f"d_{item['id']}")
                         else:
                             if st.button("START", key=f"s_{item['id']}"):
                                 supabase.table("properties").update({"status": "In Progress"}).eq("id", item['id']).execute()
                                 st.rerun()
             
-            # --- PHASE 4 MANAGER TOOLS ---
+            # --- 6. Manager Tools ---
             st.markdown("---")
             st.subheader("MANAGER TOOLS")
-            
-            # Reset Button
             if st.button("🔄 RESET ALL FOR TOMORROW", use_container_width=True):
                 supabase.table("properties").update({"status": "Ready", "last_completed_at": None}).neq("name", "VOID").execute()
                 st.rerun()
             
-            # Property Creator Tool (New in Phase 4)
             with st.expander("➕ ADD NEW PROPERTY TO STUDIO"):
-                st.write("New properties appear as 'Ready' instantly.")
                 new_p_name = st.text_input("Property Name (e.g., Suite 102)")
                 if st.button("Confirm & Add"):
                     if new_p_name:
                         supabase.table("properties").insert({"name": new_p_name, "status": "Ready"}).execute()
-                        st.success(f"{new_p_name} is now live!")
+                        st.success(f"{new_p_name} added!")
                         st.rerun()
 
         except Exception as e: st.error(f"Error: {e}")
