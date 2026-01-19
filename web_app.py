@@ -32,11 +32,11 @@ else:
     st.subheader("PROPERTY OVERVIEW")
     
     try:
-        # Fetching your clean property list
+        # Fetch data from your cloud database
         response = supabase.table("properties").select("id, name, status").execute()
         properties = response.data
         
-        # AUTOMATION: This part automatically counts your progress
+        # AUTOMATION: Calculates metrics instantly
         total_rooms = len(properties)
         completed_rooms = sum(1 for p in properties if p['status'] == 'Completed')
         remaining = total_rooms - completed_rooms
@@ -47,39 +47,59 @@ else:
         col_c.metric("Remaining", remaining)
         st.markdown("---")
 
-        # --- 5. The Property List cards ---
-        for item in properties:
-            with st.container(border=True):
-                col1, col2 = st.columns([2, 1])
-                with col1:
-                    st.write(f"**{item['name'].upper()}**")
-                    status = item.get('status', 'Ready')
-                    color = "#27AE60" if status == "Completed" else "#D4AF37"
-                    st.markdown(f"<span style='color:{color}'>Status: {status}</span>", unsafe_allow_html=True)
+        # --- 5. SCALING: Search & Filter Bar ---
+        # This allows for quick navigation as you add more suites
+        search_query = st.text_input("🔍 Search by Property Name", "").strip().lower()
+        status_filter = st.selectbox("🎯 Filter by Status", ["All", "Ready", "In Progress", "Completed"])
 
-                with col2:
-                    if "Progres" in status:
-                        if st.button("MARK FINISHED", key=item['id']):
-                            supabase.table("properties").update({"status": "Completed"}).eq("id", item['id']).execute()
-                            st.rerun()
-                    elif status == "Completed":
-                        st.button("SERVICE DONE", disabled=True, key=item['id'])
-                    else:
-                        if st.button("START SERVICE", key=item['id']):
-                            supabase.table("properties").update({"status": "In Progress"}).eq("id", item['id']).execute()
-                            st.rerun()
+        # This logic filters the list before showing it
+        filtered_properties = [
+            p for p in properties 
+            if (search_query in p['name'].lower()) and 
+               (status_filter == "All" or p['status'] == status_filter)
+        ]
 
-        # --- 6. Automation: The Daily Reset ---
+        # --- 6. The Property List cards ---
+        if not filtered_properties:
+            st.info("No properties match your search.")
+        else:
+            for item in filtered_properties:
+                with st.container(border=True):
+                    col1, col2 = st.columns([2, 1])
+                    with col1:
+                        st.write(f"**{item['name'].upper()}**")
+                        status = item.get('status', 'Ready')
+                        color = "#27AE60" if status == "Completed" else "#D4AF37"
+                        st.markdown(f"<span style='color:{color}'>Status: {status}</span>", unsafe_allow_html=True)
+
+                    with col2:
+                        if "Progres" in status:
+                            if st.button("MARK FINISHED", key=item['id']):
+                                supabase.table("properties").update({"status": "Completed"}).eq("id", item['id']).execute()
+                                st.rerun()
+                        elif status == "Completed":
+                            st.button("SERVICE DONE", disabled=True, key=item['id'])
+                        else:
+                            if st.button("START SERVICE", key=item['id']):
+                                supabase.table("properties").update({"status": "In Progress"}).eq("id", item['id']).execute()
+                                st.rerun()
+
+        # --- 7. Automation: The Daily Reset ---
         st.markdown("---")
         st.subheader("MANAGER AUTOMATION")
         
-        # This button automates the reset of every room to 'Ready'
         if st.button("🔄 RESET ALL FOR TOMORROW", use_container_width=True):
-            # Using a logic check to target all rows
             supabase.table("properties").update({"status": "Ready"}).neq("name", "RE-SET-SYSTEM-VOID").execute()
             st.success("Automation Complete: All rooms are now Ready.")
             st.rerun() 
 
+    except Exception as e:
+        st.error(f"Database Error: {e}")
+
+    # Clean Login UI: Move Log Out to center bottom
+    if st.button("Log Out"):
+        st.session_state.logged_in = False
+        st.rerun()
     except Exception as e:
         st.error(f"Database Error: {e}")
 
@@ -88,3 +108,4 @@ else:
     if st.button("Log Out"):
         st.session_state.logged_in = False
         st.rerun()
+
