@@ -46,7 +46,8 @@ else:
 
         # --- 5. Search & Filter Bar ---
         search_query = st.text_input("🔍 Search by Property Name", "").strip().lower()
-        status_filter = st.selectbox("🎯 Filter by Status", ["All", "Ready", "In Progress", "Completed"])
+        # We change the index to 1 so 'Ready' is the first thing you see
+        status_filter = st.selectbox("🎯 Filter by Status", ["All", "Ready", "In Progress", "Completed"], index=1)
 
         filtered_properties = [
             p for p in properties 
@@ -93,4 +94,5 @@ else:
     if st.button("Log Out"):
         st.session_state.logged_in = False
         st.rerun()
+
 
