@@ -62,4 +62,22 @@ else:
     if st.button("Log Out"):
         st.session_state.logged_in = False
         st.rerun()
+        # --- 5. Manager Tools (The Daily Reset) ---
+    st.markdown("---")
+    st.subheader("MANAGER CONTROLS")
+    
+    if st.button("RESET ALL ROOMS FOR TOMORROW", use_container_width=True):
+        try:
+            # This command tells the database to set every status back to 'Ready'
+            supabase.table("properties").update({"status": "Ready"}).neq("id", "00000000-0000-0000-0000-000000000000").execute()
+            st.success("All properties (Suite 101, Lobby Lounge, etc.) are now RESET.")
+            st.rerun() # This refreshes the screen so all cards turn gold again
+        except Exception as e:
+            st.error(f"Reset failed: {e}")
+
+    # Log Out Button
+    if st.sidebar.button("Log Out"):
+        st.session_state.logged_in = False
+        st.rerun()
+
 
