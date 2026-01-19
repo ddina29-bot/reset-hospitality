@@ -1,127 +1,89 @@
 import streamlit as st
 from supabase import create_client, Client
-from datetime import datetime
 
-# --- 1. Database Setup ---
-SUPABASE_URL = "https://wuqgjkurzstjmhtbdqez.supabase.co"
-SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind1cWdqa3VyenN0am1odGJkcWV6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg4MjU5MTcsImV4cCI6MjA4NDQwMTkxN30.uealUGFmT7qiX_eA3Ya-cuW9KJYcBg-et18iaEdppEs" # <--- Paste your key here!
-supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+# 1. Database Connection
+# Replace these with your actual Supabase credentials
+URL = "https://wuqgjkurzstjmhtbdqez.supabase.co"
+KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind1cWdqa3VyenN0am1odGJkcWV6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg4MjU5MTcsImV4cCI6MjA4NDQwMTkxN30.uealUGFmT7qiX_eA3Ya-cuW9KJYcBg-et18iaEdppEs"
+supabase: Client = create_client(URL, KEY)
 
-# --- 2. Branding ---
-st.set_page_config(page_title="RE-SET Hospitality", layout="centered")
-GOLD = "#D4AF37"
-RED = "#E74C3C"
-GREEN = "#27AE60"
+# 2. Memory Management (Session State)
+# This prevents the filter from resetting to "All" when you click a button
+if 'filter_choice' not in st.session_state:
+    st.session_state.filter_choice = 'All'
 
-st.markdown(f"<h1 style='text-align: center;'>RE-SET</h1><h3 style='text-align: center; color: {GOLD};'>Hospitality Studio</h3>", unsafe_allow_html=True)
+# 3. Helper Functions
+def update_suite_data(suite_id, updates):
+    """Sends any change (status or instructions) to Supabase"""
+    supabase.table("suites").update(updates).eq("id", suite_id).execute()
+    st.rerun()
 
-# --- 3. Login Logic ---
-if 'logged_in' not in st.session_state:
-    st.session_state.logged_in = False
-    st.session_state.username = "User"
+# 4. Fetch Live Data
+# We pull the data every time the app runs to keep counters accurate
+response = supabase.table("suites").select("*").order("name").execute()
+suites = response.data
 
-if not st.session_state.logged_in:
-    email = st.text_input("Email")
-    password = st.text_input("Password", type="password")
-    if st.button("LOG IN"):
-        if email == "dina@test.com" and password == "123456":
-            st.session_state.logged_in = True
-            try:
-                user_query = supabase.table("staff_directory").select("full_name").eq("email", email).execute()
-                st.session_state.username = user_query.data[0]['full_name'] if user_query.data else "Dina"
-            except: st.session_state.username = "Dina"
-            st.rerun()
-else:
-    st.markdown(f"<p style='text-align: center;'>Welcome back, <b>{st.session_state.username}</b>! 👋</p>", unsafe_allow_html=True)
-    tab1, tab2 = st.tabs(["🚀 LIVE DASHBOARD", "📜 PERFORMANCE REPORTS"])
+# 5. Dynamic Counters
+# These calculate automatically based on the 'status' column in your DB
+total_count = len(suites)
+done_count = len([s for s in suites if s['status'] == 'Completed'])
+maint_count = len([s for s in suites if s['status'] == 'Maintenance'])
 
-    with tab1:
-        try:
-            response = supabase.table("properties").select("*").execute()
-            properties = response.data
-            
-            # Metrics
-            c1, c2, c3 = st.columns(3)
-            c1.metric("Total", len(properties))
-            c2.metric("Done", sum(1 for p in properties if p['status'] == 'Completed'))
-            c3.metric("Maint.", sum(1 for p in properties if p['status'] == 'Maintenance'))
-            
-            # Filters
-            search = st.text_input("🔍 Search", "").strip().lower()
-            f_status = st.selectbox("🎯 Filter", ["All", "Ready", "In Progress", "Completed", "Maintenance"], index=0)
-            filtered = [p for p in properties if (search in p['name'].lower()) and (f_status == "All" or p['status'] == f_status)]
+# --- UI LAYOUT ---
 
-            # --- 4. Property Cards with Maintenance Logic ---
-            for item in filtered:
-                with st.container(border=True):
-                    col1, col2 = st.columns([2, 1])
-                    with col1:
-                        st.write(f"**{item['name'].upper()}**")
-                        status = item.get('status', 'Ready')
-                        
-                        # Color logic based on status
-                        if status == "Completed": color = GREEN
-                        elif status == "Maintenance": color = RED
-                        else: color = GOLD
-                        
-                        st.markdown(f"<span style='color:{color}; font-weight: bold;'>Status: {status}</span>", unsafe_allow_html=True)
-                        
-                        # Show finish time if completed
-                        if status == "Completed" and item.get('last_completed_at'):
-                            formatted_time = item['last_completed_at'][:16].replace('T', ' ')
-                            st.caption(f"✅ Finished at: {formatted_time}")
-                        
-                        # Special Instructions
-                        current_note = item.get('notes') if item.get('notes') else ""
-                        new_note = st.text_input("Special Instructions", value=current_note, key=f"n_{item['id']}")
-                        if new_note != current_note:
-                            supabase.table("properties").update({"notes": new_note}).eq("id", item['id']).execute()
-                            st.toast("Note updated!")
+# Top Statistics Row
+col1, col2, col3 = st.columns(3)
+col1.metric("Total", total_count)
+col2.metric("Done", done_count)
+col3.metric("Maint.", maint_count)
 
-                    with col2:
-                        # Maintenance Toggle Button
-                        m_label = "✅ FIXED" if status == "Maintenance" else "🔧 MAINT"
-                        if st.button(m_label, key=f"m_{item['id']}", use_container_width=True):
-                            new_s = "Ready" if status == "Maintenance" else "Maintenance"
-                            supabase.table("properties").update({"status": new_s}).eq("id", item['id']).execute()
-                            st.rerun()
+st.divider()
 
-                        # Standard Workflow (Hidden if in Maintenance)
-                        if status == "In Progress":
-                            if st.button("FINISH", key=f"f_{item['id']}", use_container_width=True):
-                                now = datetime.now().isoformat()
-                                supabase.table("properties").update({"status": "Completed", "last_completed_at": now}).eq("id", item['id']).execute()
-                                supabase.table("service_logs").insert({"property_name": item['name'], "status_reached": "Completed", "staff_email": st.session_state.username}).execute()
-                                st.rerun()
-                        elif status == "Ready":
-                            if st.button("START", key=f"s_{item['id']}", use_container_width=True):
-                                supabase.table("properties").update({"status": "In Progress"}).eq("id", item['id']).execute()
-                                st.rerun()
-            
-            # --- 5. Manager Tools ---
-            st.markdown("---")
-            with st.expander("🛠️ MANAGER TOOLS"):
-                if st.button("🔄 RESET BOARD FOR TOMORROW", use_container_width=True):
-                    # Resets Ready/In Progress/Completed but leaves Maintenance as is!
-                    supabase.table("properties").update({"status": "Ready", "last_completed_at": None}).neq("status", "Maintenance").execute()
-                    st.rerun()
-                
-                new_p = st.text_input("Add New Property Name")
-                if st.button("Confirm & Add"):
-                    if new_p:
-                        supabase.table("properties").insert({"name": new_p, "status": "Ready"}).execute()
-                        st.rerun()
+# Search and Filter Section
+search_query = st.text_input("🔍 Search Suites", placeholder="Enter suite name...")
 
-        except Exception as e: st.error(f"Error: {e}")
+# The "Memory" Filter - it stays on your choice even after a click
+st.session_state.filter_choice = st.selectbox(
+    "🎯 Filter by Status", 
+    ["All", "Completed", "Maintenance"],
+    index=["All", "Completed", "Maintenance"].index(st.session_state.filter_choice)
+)
 
-    with tab2:
-        st.subheader("Historical Activity Log")
-        try:
-            history = supabase.table("service_logs").select("*").order("finished_at", desc=True).execute()
-            if history.data: st.dataframe(history.data, use_container_width=True)
-            else: st.info("No activity recorded yet.")
-        except Exception as e: st.error(f"Could not load history: {e}")
+st.write("---")
 
-    if st.button("Log Out"):
-        st.session_state.logged_in = False
-        st.rerun()
+# 6. The Main List
+for suite in suites:
+    # Filter Logic: Skip suites that don't match the search or the dropdown
+    if st.session_state.filter_choice != "All" and suite['status'] != st.session_state.filter_choice:
+        continue
+    if search_query.lower() not in suite['name'].lower():
+        continue
+
+    # Card Display
+    with st.container(border=True):
+        header_col, btn_col = st.columns([3, 1])
+        
+        with header_col:
+            st.subheader(f"**{suite['name']}**")
+            # Color coding the status text
+            status_color = "green" if suite['status'] == "Completed" else "red"
+            st.markdown(f"Status: :{status_color}[{suite['status']}]")
+        
+        with btn_col:
+            # When clicked, this updates the DB and the counters update automatically
+            if st.button("🔧 MAINT", key=f"btn_{suite['id']}"):
+                update_suite_data(suite['id'], {"status": "Maintenance"})
+
+        # Special Instructions Box
+        # This saves to the database as soon as you click 'Enter' or click away
+        current_instr = suite.get('instructions', "")
+        new_instr = st.text_area(
+            "Special Instructions", 
+            value=current_instr, 
+            key=f"text_{suite['id']}",
+            height=68
+        )
+        
+        # Save instruction changes if they are different from what's in the DB
+        if new_instr != current_instr:
+            update_suite_data(suite['id'], {"instructions": new_instr})
