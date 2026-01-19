@@ -84,6 +84,7 @@ else:
         st.error(f"Database Error: {e}")
 
     # Log Out Sidebar
-    if st.sidebar.button("Log Out"):
+    # Remove '.sidebar' to move the button to the main center screen
+    if st.button("Log Out"):
         st.session_state.logged_in = False
         st.rerun()
