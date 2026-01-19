@@ -1,87 +1,55 @@
 import streamlit as st
-from supabase import create_client, Client
 
-# --- 1. CONNECTION ---
-URL = "https://wuqgjkurzstjmhtbdqez.supabase.co"
-KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind1cWdqa3VyenN0am1odGJkcWV6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg4MjU5MTcsImV4cCI6MjA4NDQwMTkxN30.uealUGFmT7qiX_eA3Ya-cuW9KJYcBg-et18iaEdppEs"
-supabase: Client = create_client(URL, KEY)
+# --- 1. PAGE CONFIGURATION ---
+st.set_page_config(page_title="Re set Hospitality Studio", layout="wide")
 
-# Memory for Filter to prevent "jumping"
-if 'filter_choice' not in st.session_state:
-    st.session_state.filter_choice = 'All'
+# --- 2. BRANDING & GREETING ---
+# Centered professional business name
+st.markdown("<h3 style='text-align: center; color: #555;'>Re set Hospitality Studio</h3>", unsafe_allow_html=True)
 
-# --- 2. DATABASE FUNCTIONS ---
-def update_status(suite_id, new_status):
-    supabase.table("suites").update({"status": new_status}).eq("id", suite_id).execute()
-    st.rerun()
-
-# --- 3. UI: HEADER ---
+# Personal greeting
 st.title("👋 Welcome back, Dina")
-st.write("Reset Hospitality Studio | Management Dashboard")
-
-# --- 4. FETCH DATA ---
-try:
-    response = supabase.table("suites").select("*").order("name").execute()
-    suites = response.data
-except Exception as e:
-    st.error(f"Connection Error: {e}")
-    suites = []
-
-# --- 5. PHASE METRICS ---
-ready = len([s for s in suites if s.get('status') == 'Ready'])
-in_progress = len([s for s in suites if s.get('status') == 'In Progress'])
-completed = len([s for s in suites if s.get('status') == 'Completed'])
-
-col1, col2, col3 = st.columns(3)
-col1.metric("Apartments Ready", ready)
-col2.metric("In Progress", in_progress)
-col3.metric("Completed", completed)
-
+st.write("Management Dashboard | Overview")
 st.divider()
 
-# --- 6. FILTER & SEARCH ---
+# --- 3. STATUS METRICS (PHASE 1 MOCKUP) ---
+# These are just visual placeholders for now
+col1, col2, col3 = st.columns(3)
+col1.metric("Apartments Ready", "12")
+col2.metric("In Progress", "4")
+col3.metric("Completed", "8")
+
+st.write("---")
+
+# --- 4. SEARCH & FILTER MOCKUP ---
 search = st.text_input("🔍 Search Properties", placeholder="Enter suite number...")
+filter_view = st.selectbox("🎯 Filter View", ["All", "Ready", "In Progress", "Completed", "Maintenance"])
 
-st.session_state.filter_choice = st.selectbox(
-    "🎯 Filter by Status", 
-    ["All", "Ready", "In Progress", "Completed", "Maintenance"],
-    index=["All", "Ready", "In Progress", "Completed", "Maintenance"].index(st.session_state.filter_choice)
-)
+# --- 5. PROPERTY LIST (STATIC EXAMPLE) ---
+# This shows you how the cards will look once data is flowing
+sample_suites = [
+    {"name": "101", "status": "Ready", "notes": "Check balcony lock."},
+    {"name": "102", "status": "In Progress", "notes": "Waiting for extra towels."},
+    {"name": "103", "status": "Maintenance", "notes": "AC unit leaking."}
+]
 
-# --- 7. THE PROPERTY LIST ---
-if not suites:
-    st.info("Your list is empty. Please add suites in Supabase or check your RLS policies.")
-else:
-    for suite in suites:
-        # Filter Logic
-        if st.session_state.filter_choice != "All" and suite['status'] != st.session_state.filter_choice:
-            continue
-        if search.lower() not in suite['name'].lower():
-            continue
+for suite in sample_suites:
+    with st.container(border=True):
+        c1, c2 = st.columns([3, 1])
+        with c1:
+            st.subheader(f"SUITE {suite['name']}")
+            st.write(f"Current Phase: **{suite['status']}**")
+            st.text_area("Special Requests", value=suite['notes'], key=f"notes_{suite['name']}")
 
-        with st.container(border=True):
-            c1, c2 = st.columns([3, 1])
-            with c1:
-                st.subheader(f"SUITE {suite['name']}")
-                st.write(f"Current Phase: **{suite['status']}**")
-                
-                # Special Requests Area
-                notes = st.text_area("Special Requests", value=suite.get('notes', ""), key=f"n_{suite['id']}")
-                if notes != suite.get('notes'):
-                    supabase.table("suites").update({"notes": notes}).eq("id", suite['id']).execute()
+        with c2:
+            st.write("Actions:")
+            st.button("🚀 Start", key=f"start_{suite['name']}")
+            st.button("✅ Done", key=f"done_{suite['name']}")
+            st.button("🔧 Maint.", key=f"maint_{suite['name']}")
 
-            with c2:
-                # Working Buttons
-                if st.button("🚀 Start", key=f"s_{suite['id']}"):
-                    update_status(suite['id'], "In Progress")
-                if st.button("✅ Done", key=f"d_{suite['id']}"):
-                    update_status(suite['id'], "Completed")
-                if st.button("🔧 Maint.", key=f"m_{suite['id']}"):
-                    update_status(suite['id'], "Maintenance")
-
-# --- 8. MANAGEMENT SIDEBAR ---
+# --- 6. SIDEBAR TOOLS ---
 with st.sidebar:
     st.header("Management Tools")
-    if st.button("📊 Generate Report"):
-        st.write("Exporting data...")
-        st.download_button("Download CSV", "Suite,Status\n101,Completed", "report.csv")
+    st.button("📊 Generate Report")
+    st.divider()
+    st.write("Phase 1: Visual Design Only")
