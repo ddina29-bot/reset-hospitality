@@ -78,6 +78,23 @@ else:
             if st.button("🔄 RESET ALL FOR TOMORROW", use_container_width=True):
                 supabase.table("properties").update({"status": "Ready", "last_completed_at": None}).neq("name", "VOID").execute()
                 st.rerun()
+                # --- 8. EXPANSION: Add New Property (Phase 4) ---
+        st.markdown("---")
+        with st.expander("➕ ADD NEW PROPERTY TO STUDIO"):
+            st.write("Use this to grow your business. New properties appear as 'Ready' instantly.")
+            new_p_name = st.text_input("Property Name (e.g., Suite 102)")
+            
+            if st.button("Confirm & Add Property"):
+                if new_p_name:
+                    # This sends the new room name to your cloud database
+                    supabase.table("properties").insert({
+                        "name": new_p_name, 
+                        "status": "Ready"
+                    }).execute()
+                    st.success(f"Success! {new_p_name} is now live.")
+                    st.rerun()
+                else:
+                    st.warning("Please enter a name first.")
         except Exception as e: st.error(f"Error: {e}")
 
     with tab2:
@@ -96,3 +113,4 @@ else:
     if st.button("Log Out"):
         st.session_state.logged_in = False
         st.rerun()
+
